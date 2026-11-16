@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class KsuScriptTest {
     @Test
@@ -43,5 +44,27 @@ class KsuScriptTest {
         val script = KsuScript.build("/data/local/tmp/x", hostile)
         // The hostile sequence must not survive verbatim inside a double-quoted context.
         assertFalse(script.contains("path \"$hostile\""))
+    }
+
+    @Test
+    fun scriptPassesShellSyntaxCheck() {
+        val sh = File("/bin/sh")
+        if (!sh.exists()) return // host-only check; CI runners have bash/sh
+        val script = KsuScript.build(
+            "/data/app/~~a==/com.resukisu.resukisu-Ab==/lib/arm64/libksud.so",
+            "com.resukisu.resukisu",
+        )
+        val tmp = kotlin.io.path.createTempFile("ksu", ".sh").toFile()
+        try {
+            tmp.writeText(script)
+            val process = ProcessBuilder("sh", "-n", tmp.absolutePath)
+                .redirectErrorStream(true)
+                .start()
+            val output = process.inputStream.readBytes().decodeToString()
+            val code = process.waitFor()
+            assertTrue("sh -n reported (code=$code): $output", code == 0)
+        } finally {
+            tmp.delete()
+        }
     }
 }

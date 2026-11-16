@@ -105,6 +105,14 @@ jobs:
           mkdir -p release-files
           find artifacts -type f -exec cp {} release-files/ \;
 
+          cd release-files
+          for f in GhostLockPad-release.apk preload.so; do
+            if [ -f "$f" ]; then
+              sha256sum "$f"
+            fi
+          done > sha256sum.txt
+          cd ..
+
           VERSION_NAME=$(sed -nE 's/^[[:space:]]*val appVersionName = "([^"]+)".*/\1/p' app/build.gradle.kts)
           SHORT_HASH=$(git rev-parse --short HEAD)
           COMMIT_COUNT=$(git rev-list --count HEAD)
