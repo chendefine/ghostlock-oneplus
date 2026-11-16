@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GhostLock Pad</string>
+    <string name="kernel_title">设备内核</string>
+    <string name="kernel_supported">受支持</string>
+    <string name="kernel_unsupported">内核不受支持</string>
+    <string name="kernel_unsupported_hint">内置载荷仅针对固件版本 %1$s 生成，在其他内核上运行可能导致设备崩溃。如需支持其他版本，请用对应的 boot.img + xbl_config.img 重新生成载荷。</string>
+    <string name="root_live">root 已生效</string>
+    <string name="shizuku_title">Shizuku（shell）</string>
+    <string name="shizuku_ready">就绪</string>
+    <string name="shizuku_permission">需要授权</string>
+    <string name="shizuku_offline">未运行</string>
+    <string name="shizuku_hint">请在平板上通过无线调试启动 Shizuku：设置 → 开发者选项 → 无线调试 → 配对，然后在 Shizuku 应用中启动服务，再回到本应用。</string>
+    <string name="shizuku_grant">授权 Shizuku 访问</string>
+    <string name="manager_title">Root 管理器（ksud）</string>
+    <string name="manager_none">未找到 KernelSU 系管理器。请先安装一个（KernelSU / SukiSU / ReSukiSU / BakaSU / KowSU，推荐 ReSukiSU）。没有 ksud 时运行仅获得临时 root。</string>
+    <string name="manager_no_ksud">已安装的管理器未内置 libksud.so，将无法加载 KernelSU。</string>
+    <string name="run_title">攻击</string>
+    <string name="run_action">运行 GhostLock</string>
+    <string name="run_busy">运行中…</string>
+    <string name="log_title">日志</string>
+    <string name="log_copy">复制</string>
+    <string name="log_empty">暂无输出。</string>
+    <string name="disclaimer">仅供对自有设备进行授权的安全研究。内核利用可能导致设备崩溃或重启；root 与 KernelSU 在重启后失效，每次开机后需重新运行 GhostLock。</string>
+</resources>

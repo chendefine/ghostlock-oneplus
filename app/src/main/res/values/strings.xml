@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GhostLock Pad</string>
+    <string name="kernel_title">Device kernel</string>
+    <string name="kernel_supported">Supported</string>
+    <string name="kernel_unsupported">Unsupported kernel</string>
+    <string name="kernel_unsupported_hint">The bundled payload targets firmware build %1$s only. Running it on any other kernel can crash the device. Regenerate the payload from your exact boot.img + xbl_config.img to add support.</string>
+    <string name="root_live">root live</string>
+    <string name="shizuku_title">Shizuku (shell)</string>
+    <string name="shizuku_ready">Ready</string>
+    <string name="shizuku_permission">Permission needed</string>
+    <string name="shizuku_offline">Not running</string>
+    <string name="shizuku_hint">Start Shizuku via wireless debugging on the tablet: Settings → Developer options → Wireless debugging → pair, then start Shizuku from its app and come back.</string>
+    <string name="shizuku_grant">Grant Shizuku access</string>
+    <string name="manager_title">Root manager (ksud)</string>
+    <string name="manager_none">No KernelSU-family manager found. Install one (KernelSU / SukiSU / ReSukiSU / BakaSU / KowSU) first — ReSukiSU is recommended. Without ksud, the run still grants temporary root only.</string>
+    <string name="manager_no_ksud">No installed manager bundles libksud.so; KernelSU will not be loaded.</string>
+    <string name="run_title">Exploit</string>
+    <string name="run_action">Run GhostLock</string>
+    <string name="run_busy">Running…</string>
+    <string name="log_title">Log</string>
+    <string name="log_copy">Copy</string>
+    <string name="log_empty">No output yet.</string>
+    <string name="disclaimer">For authorized security research on devices you own. Kernel exploitation can crash or reboot the device; root and KernelSU live until the next reboot — rerun GhostLock after every boot.</string>
+</resources>

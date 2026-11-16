@@ -1,0 +1,168 @@
+name: Build
+
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          java-version: 21
+          distribution: zulu
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Set up Android SDK pieces
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install "platforms;android-36" "build-tools;35.0.0" > /dev/null
+
+      - name: Verify bundled payload integrity
+        run: |
+          echo "32ac2f03f56955c41032157aa53f23590c3f6a1595fccc025ad991322e07f7f6  app/src/main/jniLibs/arm64-v8a/libghostlock_preload.so" | sha256sum -c -
+
+      - name: Unit tests
+        run: ./gradlew :app:testReleaseUnitTest --no-daemon
+
+      - name: Build Release APK
+        env:
+          KEYSTORE_PASS: ghostlock-pad
+          KEY_ALIAS: ghostlock-pad
+          KEY_PASSWORD: ghostlock-pad
+        run: ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Collect release files
+        run: |
+          mkdir -p release-files
+          cp build/app/outputs/apk/release/*.apk release-files/GhostLockPad-release.apk
+          cp app/src/main/jniLibs/arm64-v8a/libghostlock_preload.so release-files/preload.so
+          cd release-files
+          sha256sum GhostLockPad-release.apk preload.so > sha256sum.txt
+          cat sha256sum.txt
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostLockPad-release
+          path: release-files/GhostLockPad-release.apk
+          archive: false
+
+      - name: Upload payload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: preload
+          path: release-files/preload.so
+          archive: false
+
+  prerelease:
+    name: Pre-release
+    needs: build-apk
+    runs-on: ubuntu-latest
+    if: ${{ success() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.ref_type != 'tag' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          skip-decompress: true
+
+      - name: Prepare release files and notes
+        run: |
+          mkdir -p release-files
+          find artifacts -type f -exec cp {} release-files/ \;
+
+          VERSION_NAME=$(sed -nE 's/^[[:space:]]*val appVersionName = "([^"]+)".*/\1/p' app/build.gradle.kts)
+          SHORT_HASH=$(git rev-parse --short HEAD)
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          export VERSION_NAME SHORT_HASH COMMIT_COUNT COMMIT_MSG
+
+          python3 - <<'PY'
+          import os
+
+          version = os.environ.get("VERSION_NAME", "Unknown")
+          short_hash = os.environ.get("SHORT_HASH", "Unknown")
+          commit_count = os.environ.get("COMMIT_COUNT", "0")
+          commit_msg = os.environ.get("COMMIT_MSG", "No commit message").strip()
+          repo = os.environ.get("GITHUB_REPOSITORY", "chendefine/ghostlock-oneplus")
+          sha = os.environ.get("GITHUB_SHA", "")
+
+          with open("release-files/sha256sum.txt", "r", encoding="utf-8") as f:
+              checksums = f.read().strip()
+
+          lines = [
+              "### GhostLock Pad Pre-release",
+              "",
+              f"- **Version**: `v{version}` (`{commit_count}`)",
+              f"- **Commit**: [`{short_hash}`](https://github.com/{repo}/commit/{sha})",
+              "",
+              "#### Commit Message",
+              "```",
+              commit_msg,
+              "```",
+              "",
+              "#### Files",
+              "- `GhostLockPad-release.apk`: GhostLock Pad app (OnePlus Pad 3 Pro / OnePlus Pad 4, kernel "
+              "`6.12.58-android16-6-g7704a1ae279b-ab15213644-4k`)",
+              "- `preload.so`: the bundled CVE-2026-43499 payload (standalone, for adb `LD_PRELOAD` use)",
+              "",
+              "#### SHA256 Checksums",
+              "```",
+              checksums,
+              "```",
+          ]
+          notes = "\n".join(lines) + "\n"
+          with open("release-notes.md", "w", encoding="utf-8") as f:
+              f.write(notes)
+          PY
+
+      - name: Update Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f pre-release
+          git push -f origin pre-release
+          gh release edit pre-release --target ${{ github.sha }} 2>/dev/null || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: pre-release
+          target_commitish: ${{ github.sha }}
+          name: GhostLock Pad Pre-release
+          body_path: release-notes.md
+          prerelease: true
+          files: release-files/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
