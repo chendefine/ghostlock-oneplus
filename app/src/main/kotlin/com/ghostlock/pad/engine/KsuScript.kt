@@ -26,7 +26,7 @@ object KsuScript {
         val safePkg = sanitize(managerPackage)
         return """
         #!/system/bin/sh
-        LOG=${'$'}{LOG:-/data/local/tmp/ghostlock/ksu_install.log}
+        LOG=${'$'}{LOG:-/data/local/tmp/ghostlock/ksu_script.log}
         diag() { echo "${'$'}*"; echo "${'$'}*" >>"${'$'}LOG"; }
         fail() { diag "[!] ${'$'}*"; exit 1; }
         diag "[*] KernelSU install start uid=$(id -u)"

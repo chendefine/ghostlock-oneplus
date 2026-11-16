@@ -34,7 +34,7 @@ object EngineContract {
     /** Exploit output log (payload writes unbuffered stdout/stderr). */
     const val EXPLOIT_LOG = "$WORK_DIR/exploit.log"
 
-    /** KernelSU install output log. */
+    /** KernelSU install console output log (script-internal log is ksu_script.log). */
     const val KSU_LOG = "$WORK_DIR/ksu_install.log"
 
     /** Bundled native payload name inside the APK's nativeLibraryDir. */

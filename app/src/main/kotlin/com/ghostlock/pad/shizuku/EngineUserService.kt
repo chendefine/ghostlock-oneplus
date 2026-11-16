@@ -162,7 +162,7 @@ class EngineUserService(private val context: Context) : IEngineService.Stub() {
         tailer.interrupt()
         tailer.join(1000)
         val modules = runSuCommand("grep -c kernelsu /proc/modules", callback)
-        val ok = finished && modules?.trim()?.toIntOrNull() ?: 0 > 0
+        val ok = finished && ((modules?.trim()?.toIntOrNull() ?: 0) > 0)
         if (ok) {
             log(callback, "[+] KernelSU is loaded (${modules!!.trim()} module entries)")
         } else {
