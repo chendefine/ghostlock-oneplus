@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -105,22 +106,48 @@ fun GhostLockPadApp() {
     val chosenCandidate = remember(managers, selectedManager) {
         managers.firstOrNull { it.packageName == selectedManager }
     }
+    var scanInFlight by remember { mutableStateOf(false) }
+    var lastFullScan by remember { mutableStateOf(0L) }
 
+    /**
+     * Never runs package scanning on the calling thread: Shizuku binder
+     * listeners fire this from binder threads and the composition calls it
+     * from the main thread. A full [ManagerScanner.scan] with the OEM
+     * "read app list" grant returns hundreds of packages, and probing them
+     * on the main thread froze the app at startup (looked like a crash) —
+     * it is debounced and dispatched to IO here instead.
+     */
     fun refreshStatus() {
-        shizukuStatus = engine.status()
-        kernel = System.getProperty("os.version", "")
-        managers = runCatching {
-            ManagerScanner.scan(context.packageManager, context.packageName)
-        }.getOrDefault(emptyList())
-        if (selectedManager == null) {
-            selectedManager = managers.firstOrNull { it.hasKsud }?.packageName
-        }
-        if (shizukuStatus == ShizukuStatus.READY) {
-            scope.launch {
-                probeText = runCatching { engine.probe() }.getOrNull()
+        runCatching {
+            shizukuStatus = engine.status()
+            kernel = System.getProperty("os.version", "")
+            if (shizukuStatus == ShizukuStatus.READY) {
+                scope.launch {
+                    probeText = runCatching { engine.probe() }.getOrNull()
+                }
+            } else {
+                probeText = null
             }
-        } else {
-            probeText = null
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (!scanInFlight && now - lastFullScan > RESCAN_INTERVAL_MS) {
+                scanInFlight = true
+                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    val found = runCatching {
+                        ManagerScanner.scan(context.packageManager, context.packageName)
+                    }.getOrDefault(emptyList())
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        // Keep the previous good result if this scan came back empty.
+                        if (found.isNotEmpty() || managers.isEmpty()) {
+                            managers = found
+                        }
+                        if (selectedManager == null) {
+                            selectedManager = managers.firstOrNull { it.hasKsud }?.packageName
+                        }
+                        scanInFlight = false
+                        lastFullScan = android.os.SystemClock.elapsedRealtime()
+                    }
+                }
+            }
         }
     }
 
@@ -314,7 +341,7 @@ private fun ManagerCard(
                     )
                 }
                 Row(
-                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     managers.take(8).forEach { candidate ->
@@ -440,3 +467,6 @@ private fun Badge(text: String, color: Color) {
 }
 
 private const val MAX_LOG_LINES = 2000
+
+/** Minimum spacing between full manager scans (debounce for listener storms). */
+private const val RESCAN_INTERVAL_MS = 5_000L
